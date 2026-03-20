@@ -1,0 +1,38 @@
+
+# APK 和打包产物
+*.apk
+*.ap_
+*.aab
+
+# 日志文件
+*.log
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 敏感信息和本地配置
+local.properties
+keystore/
+*.jks
+*.keystore
+
+# 临时文件
+*.tmp
+*.swp
+*~
+
+# Android Studio 的其他缓存
+.idea/gradle.xml.backup
+.idea/**/usage_history.xml
+
+# ProGuard 输出
+proguard/
+
+# 测试报告
+test-results/
+androidTest-results/
+
+# 签名文件（重要！不要上传私钥）
+*.pk8
+*.x509.pem
