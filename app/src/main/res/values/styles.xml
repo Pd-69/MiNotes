@@ -63,7 +63,9 @@
     </style>
 
     <style name="NoteActionBarStyle" parent="@android:style/Widget.Holo.Light.ActionBar.Solid">
-        <item name="android:displayOptions" />
-        <item name="android:visibility">gone</item>
+<!--        原代码如下(解决UI界面显示不全问题)-->
+<!--         <item name="android:displayOptions" /> -->
+<!--        <item name="android:visibility">visible</item>-->
+        <item name="android:visibility">visible</item>
     </style>
 </resources>
