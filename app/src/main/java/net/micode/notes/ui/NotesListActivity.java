@@ -69,6 +69,7 @@ import net.micode.notes.tool.BackupUtils;
 import net.micode.notes.tool.DataUtils;
 import net.micode.notes.tool.ResourceParser;
 import net.micode.notes.ui.NotesListAdapter.AppWidgetAttribute;
+import net.micode.notes.tool.UserManager;
 import net.micode.notes.widget.NoteWidgetProvider_2x;
 import net.micode.notes.widget.NoteWidgetProvider_4x;
 
@@ -135,9 +136,20 @@ public class NotesListActivity extends Activity implements OnClickListener, OnIt
     private final static int REQUEST_CODE_OPEN_NODE = 102;
     private final static int REQUEST_CODE_NEW_NODE  = 103;
 
+////////////////////////////////////////////////////////////////////////////////
+// 添加代码实现注册功能
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        
+        // 检查用户是否已登录
+        if (!UserManager.getInstance(this).isLoggedIn()) {
+            // 未登录，跳转到登录界面
+            startActivity(new Intent(this, LoginActivity.class));
+            finish();
+            return;
+        }
+        
         setContentView(R.layout.note_list);
         initResources();
 
@@ -146,6 +158,7 @@ public class NotesListActivity extends Activity implements OnClickListener, OnIt
          */
         setAppInfoFromRawRes();
     }
+////////////////////////////////////////////////////////////////////////////////
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -318,24 +331,23 @@ public class NotesListActivity extends Activity implements OnClickListener, OnIt
                         Toast.LENGTH_SHORT).show();
                 return true;
             }
-
-            int itemId = item.getItemId();
-            if (itemId == R.id.delete) {
+// switch语句用if-else替换
+            if (item.getItemId() == R.id.delete) {
                 AlertDialog.Builder builder = new AlertDialog.Builder(NotesListActivity.this);
                 builder.setTitle(getString(R.string.alert_title_delete));
                 builder.setIcon(android.R.drawable.ic_dialog_alert);
                 builder.setMessage(getString(R.string.alert_message_delete_notes,
-                                         mNotesListAdapter.getSelectedCount()));
+                        mNotesListAdapter.getSelectedCount()));
                 builder.setPositiveButton(android.R.string.ok,
-                                         new DialogInterface.OnClickListener() {
-                                             public void onClick(DialogInterface dialog,
-                                                     int which) {
-                                                 batchDelete();
-                                             }
-                                         });
+                        new DialogInterface.OnClickListener() {
+                            public void onClick(DialogInterface dialog,
+                                                int which) {
+                                batchDelete();
+                            }
+                        });
                 builder.setNegativeButton(android.R.string.cancel, null);
                 builder.show();
-            } else if (itemId == R.id.move) {
+            } else if (item.getItemId() == R.id.move) {
                 startQueryDestinationFolders();
             } else {
                 return false;
@@ -409,10 +421,20 @@ public class NotesListActivity extends Activity implements OnClickListener, OnIt
     private void startAsyncNotesListQuery() {
         String selection = (mCurrentFolderId == Notes.ID_ROOT_FOLDER) ? ROOT_FOLDER_SELECTION
                 : NORMAL_SELECTION;
+        // 添加用户ID过滤条件，实现数据隔离
+        String currentUserId = UserManager.getInstance(this).getCurrentUser();
+        if (currentUserId != null) {
+            selection = "(" + selection + ") AND (" + NoteColumns.USER_ID + "=? OR " + NoteColumns.USER_ID + "='')";
+        }
+        String[] selectionArgs;
+        if (currentUserId != null) {
+            selectionArgs = new String[] { String.valueOf(mCurrentFolderId), currentUserId };
+        } else {
+            selectionArgs = new String[] { String.valueOf(mCurrentFolderId) };
+        }
         mBackgroundQueryHandler.startQuery(FOLDER_NOTE_LIST_QUERY_TOKEN, null,
-                Notes.CONTENT_NOTE_URI, NoteItemData.PROJECTION, selection, new String[] {
-                    String.valueOf(mCurrentFolderId)
-                }, NoteColumns.TYPE + " DESC," + NoteColumns.MODIFIED_DATE + " DESC");
+                Notes.CONTENT_NOTE_URI, NoteItemData.PROJECTION, selection, selectionArgs,
+                NoteColumns.TYPE + " DESC," + NoteColumns.MODIFIED_DATE + " DESC");
     }
 
     private final class BackgroundQueryHandler extends AsyncQueryHandler {
@@ -422,14 +444,19 @@ public class NotesListActivity extends Activity implements OnClickListener, OnIt
 
         @Override
         protected void onQueryComplete(int token, Object cookie, Cursor cursor) {
-            if (token == FOLDER_NOTE_LIST_QUERY_TOKEN) {
-                mNotesListAdapter.changeCursor(cursor);
-            } else if (token == FOLDER_LIST_QUERY_TOKEN) {
-                if (cursor != null && cursor.getCount() > 0) {
-                    showFolderListMenu(cursor);
-                } else {
-                    Log.e(TAG, "Query folder failed");
-                }
+            switch (token) {
+                case FOLDER_NOTE_LIST_QUERY_TOKEN:
+                    mNotesListAdapter.changeCursor(cursor);
+                    break;
+                case FOLDER_LIST_QUERY_TOKEN:
+                    if (cursor != null && cursor.getCount() > 0) {
+                        showFolderListMenu(cursor);
+                    } else {
+                        Log.e(TAG, "Query folder failed");
+                    }
+                    break;
+                default:
+                    return;
             }
         }
     }
@@ -551,8 +578,8 @@ public class NotesListActivity extends Activity implements OnClickListener, OnIt
     }
 
     public void onClick(View v) {
-        int viewId = v.getId();
-        if (viewId == R.id.btn_new_note) {
+        // switch -> if else
+        if (v.getId() == R.id.btn_new_note) {
             createNewNote();
         }
     }
@@ -656,6 +683,7 @@ public class NotesListActivity extends Activity implements OnClickListener, OnIt
 
     @Override
     public void onBackPressed() {
+        // switch to if else
         switch (mState) {
             case SUB_FOLDER:
                 mCurrentFolderId = Notes.ID_ROOT_FOLDER;
@@ -672,6 +700,8 @@ public class NotesListActivity extends Activity implements OnClickListener, OnIt
                 break;
             case NOTE_LIST:
                 super.onBackPressed();
+                break;
+            default:
                 break;
         }
     }
@@ -720,30 +750,36 @@ public class NotesListActivity extends Activity implements OnClickListener, OnIt
             Log.e(TAG, "The long click data item is null");
             return false;
         }
-        int itemId = item.getItemId();
-        if (itemId == MENU_FOLDER_VIEW) {
-            openFolder(mFocusNoteDataItem);
-        } else if (itemId == MENU_FOLDER_DELETE) {
-            AlertDialog.Builder builder = new AlertDialog.Builder(this);
-            builder.setTitle(getString(R.string.alert_title_delete));
-            builder.setIcon(android.R.drawable.ic_dialog_alert);
-            builder.setMessage(getString(R.string.alert_message_delete_folder));
-            builder.setPositiveButton(android.R.string.ok,
-                    new DialogInterface.OnClickListener() {
-                        public void onClick(DialogInterface dialog, int which) {
-                            deleteFolder(mFocusNoteDataItem.getId());
-                        }
-                    });
-            builder.setNegativeButton(android.R.string.cancel, null);
-            builder.show();
-        } else if (itemId == MENU_FOLDER_CHANGE_NAME) {
-            showCreateOrModifyFolderDialog(false);
-        } else {
-            return false;
+        switch (item.getItemId()) {
+            case MENU_FOLDER_VIEW:
+                openFolder(mFocusNoteDataItem);
+                break;
+            case MENU_FOLDER_DELETE:
+                AlertDialog.Builder builder = new AlertDialog.Builder(this);
+                builder.setTitle(getString(R.string.alert_title_delete));
+                builder.setIcon(android.R.drawable.ic_dialog_alert);
+                builder.setMessage(getString(R.string.alert_message_delete_folder));
+                builder.setPositiveButton(android.R.string.ok,
+                        new DialogInterface.OnClickListener() {
+                            public void onClick(DialogInterface dialog, int which) {
+                                deleteFolder(mFocusNoteDataItem.getId());
+                            }
+                        });
+                builder.setNegativeButton(android.R.string.cancel, null);
+                builder.show();
+                break;
+            case MENU_FOLDER_CHANGE_NAME:
+                showCreateOrModifyFolderDialog(false);
+                break;
+            default:
+                break;
         }
+
         return true;
     }
 
+////////////////////////////////////////////////////////////////////////////////
+// 添加代码实现注册功能
     @Override
     public boolean onPrepareOptionsMenu(Menu menu) {
         menu.clear();
@@ -752,24 +788,31 @@ public class NotesListActivity extends Activity implements OnClickListener, OnIt
             // set sync or sync_cancel
             menu.findItem(R.id.menu_sync).setTitle(
                     GTaskSyncService.isSyncing() ? R.string.menu_sync_cancel : R.string.menu_sync);
+            // 添加登出菜单项
+            menu.add(0, 1001, 0, "登出");
         } else if (mState == ListEditState.SUB_FOLDER) {
             getMenuInflater().inflate(R.menu.sub_folder, menu);
+            // 添加登出菜单项
+            menu.add(0, 1001, 0, "登出");
         } else if (mState == ListEditState.CALL_RECORD_FOLDER) {
             getMenuInflater().inflate(R.menu.call_record_folder, menu);
+            // 添加登出菜单项
+            menu.add(0, 1001, 0, "登出");
         } else {
             Log.e(TAG, "Wrong state:" + mState);
         }
         return true;
     }
+////////////////////////////////////////////////////////////////////////////////
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        int itemId = item.getItemId();
-        if (itemId == R.id.menu_new_folder) {
+        // switch to if else
+        if (item.getItemId() == R.id.menu_new_folder) {
             showCreateOrModifyFolderDialog(true);
-        } else if (itemId == R.id.menu_export_text) {
+        } else if(item.getItemId() == R.id.menu_export_text) {
             exportNoteToText();
-        } else if (itemId == R.id.menu_sync) {
+        } else if (item.getItemId() == R.id.menu_sync) {
             if (isSyncMode()) {
                 if (TextUtils.equals(item.getTitle(), getString(R.string.menu_sync))) {
                     GTaskSyncService.startSync(this);
@@ -779,17 +822,25 @@ public class NotesListActivity extends Activity implements OnClickListener, OnIt
             } else {
                 startPreferenceActivity();
             }
-        } else if (itemId == R.id.menu_setting) {
+        } else if (item.getItemId() == R.id.menu_setting) {
             startPreferenceActivity();
-        } else if (itemId == R.id.menu_new_note) {
+        } else if(item.getItemId() == R.id.menu_new_note) {
             createNewNote();
-        } else if (itemId == R.id.menu_search) {
+        } else if(item.getItemId() == R.id.menu_search) {
             onSearchRequested();
-        } else {
-            return false;
+////////////////////////////////////////////////////////////////////////////////
+// 添加代码实现用户注册功能
+        } else if (item.getItemId() == 1001) {
+            // 登出功能
+            UserManager.getInstance(this).logout();
+            startActivity(new Intent(this, LoginActivity.class));
+            finish();
+////////////////////////////////////////////////////////////////////////////////
         }
+
         return true;
     }
+////////////////////////////////////////////////////////////////////////////////
 
     @Override
     public boolean onSearchRequested() {
@@ -863,21 +914,27 @@ public class NotesListActivity extends Activity implements OnClickListener, OnIt
                     return;
                 }
 
-                if (mState == ListEditState.NOTE_LIST) {
-                    if (item.getType() == Notes.TYPE_FOLDER
-                            || item.getType() == Notes.TYPE_SYSTEM) {
-                        openFolder(item);
-                    } else if (item.getType() == Notes.TYPE_NOTE) {
-                        openNode(item);
-                    } else {
-                        Log.e(TAG, "Wrong note type in NOTE_LIST");
-                    }
-                } else if (mState == ListEditState.SUB_FOLDER || mState == ListEditState.CALL_RECORD_FOLDER) {
-                    if (item.getType() == Notes.TYPE_NOTE) {
-                        openNode(item);
-                    } else {
-                        Log.e(TAG, "Wrong note type in SUB_FOLDER");
-                    }
+                switch (mState) {
+                    case NOTE_LIST:
+                        if (item.getType() == Notes.TYPE_FOLDER
+                                || item.getType() == Notes.TYPE_SYSTEM) {
+                            openFolder(item);
+                        } else if (item.getType() == Notes.TYPE_NOTE) {
+                            openNode(item);
+                        } else {
+                            Log.e(TAG, "Wrong note type in NOTE_LIST");
+                        }
+                        break;
+                    case SUB_FOLDER:
+                    case CALL_RECORD_FOLDER:
+                        if (item.getType() == Notes.TYPE_NOTE) {
+                            openNode(item);
+                        } else {
+                            Log.e(TAG, "Wrong note type in SUB_FOLDER");
+                        }
+                        break;
+                    default:
+                        break;
                 }
             }
         }

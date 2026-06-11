@@ -20,11 +20,26 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 
+/**
+ * 闹钟广播接收器
+ * 用于接收闹钟触发的广播，并启动闹钟提醒活动
+ */
 public class AlarmReceiver extends BroadcastReceiver {
+    /**
+     * 接收广播时调用
+     * 1. 将意图的目标类设置为 AlarmAlertActivity
+     * 2. 添加 FLAG_ACTIVITY_NEW_TASK 标志，确保在非活动上下文下也能启动活动
+     * 3. 启动闹钟提醒活动
+     * @param context 上下文
+     * @param intent 接收到的广播意图
+     */
     @Override
     public void onReceive(Context context, Intent intent) {
+        // 将意图的目标类设置为 AlarmAlertActivity
         intent.setClass(context, AlarmAlertActivity.class);
+        // 添加 FLAG_ACTIVITY_NEW_TASK 标志，确保在非活动上下文下也能启动活动
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        // 启动闹钟提醒活动
         context.startActivity(intent);
     }
 }

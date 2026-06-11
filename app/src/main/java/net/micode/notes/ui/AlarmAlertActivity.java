@@ -40,12 +40,28 @@ import net.micode.notes.tool.DataUtils;
 import java.io.IOException;
 
 
+/**
+ * 闹钟提醒活动类
+ * 用于显示闹钟提醒对话框并播放闹钟声音
+ */
 public class AlarmAlertActivity extends Activity implements OnClickListener, OnDismissListener {
+    // 笔记ID
     private long mNoteId;
+    // 笔记内容摘要
     private String mSnippet;
+    // 摘要预览最大长度
     private static final int SNIPPET_PREW_MAX_LEN = 60;
+    // 媒体播放器，用于播放闹钟声音
     MediaPlayer mPlayer;
 
+    /**
+     * 活动创建时调用
+     * 1. 设置窗口特性，允许在锁屏状态下显示
+     * 2. 如果屏幕未亮，添加唤醒屏幕等标志
+     * 3. 从 Intent 中获取笔记 ID 并获取笔记摘要
+     * 4. 初始化媒体播放器
+     * 5. 检查笔记是否存在，存在则显示提醒对话框并播放闹钟声音
+     */
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -83,11 +99,22 @@ public class AlarmAlertActivity extends Activity implements OnClickListener, OnD
         }
     }
 
+    /**
+     * 检查屏幕是否处于开启状态
+     * @return 屏幕是否开启
+     */
     private boolean isScreenOn() {
         PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
         return pm.isScreenOn();
     }
 
+    /**
+     * 播放闹钟声音
+     * 1. 获取默认闹钟铃声 URI
+     * 2. 检查静音模式设置，确定音频流类型
+     * 3. 设置媒体播放器数据源并准备播放
+     * 4. 设置循环播放并开始播放
+     */
     private void playAlarmSound() {
         Uri url = RingtoneManager.getActualDefaultRingtoneUri(this, RingtoneManager.TYPE_ALARM);
 
@@ -119,6 +146,14 @@ public class AlarmAlertActivity extends Activity implements OnClickListener, OnD
         }
     }
 
+    /**
+     * 显示闹钟提醒对话框
+     * 1. 创建对话框并设置标题为应用名称
+     * 2. 设置对话框消息为笔记摘要
+     * 3. 设置确定按钮（OK）
+     * 4. 如果屏幕已亮，添加进入按钮（进入笔记编辑页面）
+     * 5. 显示对话框并设置消失监听器
+     */
     private void showActionDialog() {
         AlertDialog.Builder dialog = new AlertDialog.Builder(this);
         dialog.setTitle(R.string.app_name);
@@ -130,6 +165,13 @@ public class AlarmAlertActivity extends Activity implements OnClickListener, OnD
         dialog.show().setOnDismissListener(this);
     }
 
+    /**
+     * 对话框按钮点击事件处理
+     * @param dialog 对话框实例
+     * @param which 点击的按钮类型
+     * - DialogInterface.BUTTON_NEGATIVE: 点击进入按钮，跳转到笔记编辑页面
+     * - DialogInterface.BUTTON_POSITIVE: 点击确定按钮，默认操作（无特殊处理）
+     */
     public void onClick(DialogInterface dialog, int which) {
         switch (which) {
             case DialogInterface.BUTTON_NEGATIVE:
@@ -143,11 +185,23 @@ public class AlarmAlertActivity extends Activity implements OnClickListener, OnD
         }
     }
 
+    /**
+     * 对话框消失时调用
+     * 1. 停止闹钟声音
+     * 2. 结束当前活动
+     * @param dialog 对话框实例
+     */
     public void onDismiss(DialogInterface dialog) {
         stopAlarmSound();
         finish();
     }
 
+    /**
+     * 停止闹钟声音
+     * 1. 检查媒体播放器是否为空
+     * 2. 如果不为空，停止播放并释放资源
+     * 3. 将媒体播放器引用置为 null
+     */
     private void stopAlarmSound() {
         if (mPlayer != null) {
             mPlayer.stop();

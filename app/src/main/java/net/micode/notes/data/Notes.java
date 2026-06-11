@@ -165,6 +165,12 @@ public class Notes {
          * <P> Type : INTEGER (long) </P>
          */
         public static final String VERSION = "version";
+
+        /**
+         * The user id for data isolation
+         * <P> Type : TEXT </P>
+         */
+        public static final String USER_ID = "user_id";
     }
 
     public interface DataColumns {
